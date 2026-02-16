@@ -1,8 +1,8 @@
-#  Sistema de Agendamiento - Barbería Premium
+# 💈 Sistema de Agendamiento - Barbería Premium
 
 Sistema completo de agendamiento para barbería desarrollado con Angular, NestJS y PostgreSQL (Neon).
 
-## Tecnologías
+## 🚀 Tecnologías
 
 ### Frontend
 - **Angular 19** - Framework web moderno
@@ -15,7 +15,7 @@ Sistema completo de agendamiento para barbería desarrollado con Angular, NestJS
 - **PostgreSQL (Neon)** - Base de datos en la nube
 - **Class Validator** - Validación de datos
 
-##  Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 web7mo/
@@ -138,3 +138,16 @@ Las contribuciones son bienvenidas. Por favor:
 3. Commit tus cambios (`git commit -m 'Add: Amazing Feature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto es privado.
+
+## 👤 Autor
+
+**Josué Arreola**
+- GitHub: [@josuearreola](https://github.com/josuearreola)
+
+## ⭐ Soporte
+
+Si te gusta este proyecto, dale una ⭐ en GitHub!
