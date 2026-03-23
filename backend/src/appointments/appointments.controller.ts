@@ -8,9 +8,17 @@ import {
   Patch,
   HttpCode,
   HttpStatus,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -23,27 +31,44 @@ export class AppointmentsController {
   }
 
   @Get()
-  findAll() {
-    return this.appointmentsService.findAll();
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  findAll(@Query('fecha') fecha?: string, @Query('estado') estado?: string) {
+    return this.appointmentsService.findAll({ fecha, estado });
   }
 
   @Get(':id')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
   findOne(@Param('id') id: string) {
     return this.appointmentsService.findOne(+id);
   }
 
   @Get('fecha/:fecha')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
   findByDate(@Param('fecha') fecha: string) {
     return this.appointmentsService.findByDate(fecha);
   }
 
   @Patch(':id/estado')
-  updateStatus(@Param('id') id: string, @Body('estado') estado: string) {
-    return this.appointmentsService.updateStatus(+id, estado);
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  updateStatus(@Param('id') id: string, @Body() body: UpdateStatusDto) {
+    return this.appointmentsService.updateStatus(+id, body.estado);
+  }
+
+  @Patch(':id')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto) {
+    return this.appointmentsService.update(+id, updateAppointmentDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
   remove(@Param('id') id: string) {
     return this.appointmentsService.remove(+id);
   }

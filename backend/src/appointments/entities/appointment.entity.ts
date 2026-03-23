@@ -1,5 +1,12 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
+export enum AppointmentStatus {
+  Pendiente = 'pendiente',
+  Confirmada = 'confirmada',
+  Completada = 'completada',
+  Cancelada = 'cancelada',
+}
+
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn()
@@ -23,7 +30,7 @@ export class Appointment {
   @Column({ name: 'hora_cita', length: 10 })
   horaCita: string;
 
-  @Column({ name: 'estado', length: 20, default: 'pendiente' })
+  @Column({ name: 'estado', length: 20, default: AppointmentStatus.Pendiente })
   estado: string;
 
   @Column({ name: 'notas', type: 'text', nullable: true })
