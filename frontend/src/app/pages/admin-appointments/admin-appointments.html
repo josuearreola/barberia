@@ -1,0 +1,143 @@
+<section class="admin-page">
+  <div class="admin-header">
+    <div>
+      <h2>Panel de Citas</h2>
+      <p>Gestiona reservas, estados y datos de clientes.</p>
+    </div>
+    <button class="refresh-btn" (click)="loadAppointments()">Actualizar</button>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label for="fecha">Fecha</label>
+      <input id="fecha" type="date" [(ngModel)]="filters.fecha" />
+    </div>
+    <div class="filter-group">
+      <label for="estado">Estado</label>
+      <select id="estado" [(ngModel)]="filters.estado">
+        <option value="">Todos</option>
+        @for (status of statusOptions; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="ghost-btn" (click)="clearFilters()">Limpiar</button>
+      <button class="primary-btn" (click)="applyFilters()">Filtrar</button>
+    </div>
+  </div>
+
+  @if (errorMessage) {
+    <div class="message error">{{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+    <div class="message success">{{ successMessage }}</div>
+  }
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (isLoading) {
+          <tr>
+            <td colspan="6" class="loading">Cargando citas...</td>
+          </tr>
+        } @else {
+          @for (appointment of appointments; track appointment.id) {
+            <tr>
+              <td>
+                <div class="client">
+                  <strong>{{ appointment.nombreCompleto }}</strong>
+                  <span>{{ appointment.telefono }}</span>
+                </div>
+              </td>
+              <td>{{ appointment.servicio }}</td>
+              <td>{{ appointment.fechaCita }}</td>
+              <td>{{ appointment.horaCita }}</td>
+              <td>
+                <select
+                  class="status-select"
+                  [value]="appointment.estado"
+                  (change)="updateStatus(appointment, $any($event.target).value)"
+                >
+                  @for (status of statusOptions; track status) {
+                    <option [value]="status">{{ status }}</option>
+                  }
+                </select>
+              </td>
+              <td class="row-actions">
+                <button class="ghost-btn" (click)="startEdit(appointment)">Editar</button>
+                <button class="danger-btn" (click)="deleteAppointment(appointment)">Borrar</button>
+              </td>
+            </tr>
+          }
+          @if (!appointments.length) {
+            <tr>
+              <td colspan="6" class="loading">No hay citas para los filtros seleccionados.</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (editId) {
+    <div class="edit-card">
+      <div class="edit-header">
+        <h3>Editar cita</h3>
+        <button class="ghost-btn" (click)="cancelEdit()">Cerrar</button>
+      </div>
+      <div class="edit-grid">
+        <label>
+          Nombre completo
+          <input type="text" [(ngModel)]="editForm.nombreCompleto" />
+        </label>
+        <label>
+          Telefono
+          <input type="text" [(ngModel)]="editForm.telefono" />
+        </label>
+        <label>
+          Correo
+          <input type="email" [(ngModel)]="editForm.correo" />
+        </label>
+        <label>
+          Servicio
+          <input type="text" [(ngModel)]="editForm.servicio" />
+        </label>
+        <label>
+          Fecha
+          <input type="date" [(ngModel)]="editForm.fechaCita" />
+        </label>
+        <label>
+          Hora
+          <input type="text" [(ngModel)]="editForm.horaCita" />
+        </label>
+        <label class="wide">
+          Notas
+          <textarea rows="3" [(ngModel)]="editForm.notas"></textarea>
+        </label>
+        <label>
+          Estado
+          <select [(ngModel)]="editForm.estado">
+            @for (status of statusOptions; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      <div class="edit-actions">
+        <button class="ghost-btn" (click)="cancelEdit()">Cancelar</button>
+        <button class="primary-btn" (click)="saveEdit()">Guardar cambios</button>
+      </div>
+    </div>
+  }
+</section>

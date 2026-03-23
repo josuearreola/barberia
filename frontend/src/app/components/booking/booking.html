@@ -21,8 +21,13 @@
               [(ngModel)]="bookingForm.fullName"
               name="fullName"
               placeholder="Ej. Juan Pérez"
+              minlength="3"
+              maxlength="100"
               required
             />
+            @if (fullNameError) {
+            <div class="field-error">{{ fullNameError }}</div>
+            }
           </div>
 
           <!-- Teléfono -->
@@ -34,8 +39,12 @@
               [(ngModel)]="bookingForm.phone"
               name="phone"
               placeholder="Ej. +52 600 000 000"
+              maxlength="20"
               required
             />
+            @if (phoneError) {
+            <div class="field-error">{{ phoneError }}</div>
+            }
           </div>
 
           <!-- Email -->
@@ -47,7 +56,11 @@
               [(ngModel)]="bookingForm.email"
               name="email"
               placeholder="tu@email.com"
+              maxlength="120"
             />
+            @if (emailError) {
+            <div class="field-error">{{ emailError }}</div>
+            }
           </div>
 
           <!-- Seleccionar Servicio -->
@@ -66,6 +79,9 @@
                 </option>
               }
             </select>
+            @if (serviceError) {
+            <div class="field-error">{{ serviceError }}</div>
+            }
           </div>
 
           <!-- Fecha -->
@@ -78,6 +94,9 @@
               name="date"
               required
             />
+            @if (dateError) {
+            <div class="field-error">{{ dateError }}</div>
+            }
           </div>
 
           <!-- Hora -->
@@ -94,6 +113,9 @@
                 <option [value]="time">{{ time }}</option>
               }
             </select>
+            @if (timeError) {
+            <div class="field-error">{{ timeError }}</div>
+            }
           </div>
 
           <!-- Mensajes de éxito/error -->

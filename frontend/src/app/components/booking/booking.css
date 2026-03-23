@@ -90,6 +90,11 @@
   color: #adb5bd;
 }
 
+.field-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #c0392b;
+}
 /* Botón de envío */
 .submit-btn {
   background-color: #ff9800;

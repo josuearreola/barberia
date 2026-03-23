@@ -1,17 +1,30 @@
 import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { Header } from './components/header/header';
-import { SocialSidebar } from './components/social-sidebar/social-sidebar';
-import { Hero } from './components/hero/hero';
-import { Services } from './components/services/services';
-import { Booking } from './components/booking/booking';
+import { Footer } from './components/footer/footer';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header, SocialSidebar, Hero, Services, Booking],
+  imports: [RouterOutlet, Header, Footer],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
   protected readonly title = signal('frontend');
+  protected readonly showChrome = signal(true);
+
+  constructor(private authService: AuthService, private router: Router) {
+    this.authService.loadSession().subscribe();
+
+    const hideOnRoutes = new Set(['/login', '/registro']);
+    this.showChrome.set(!hideOnRoutes.has(this.router.url));
+
+    this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe((event) => {
+        this.showChrome.set(!hideOnRoutes.has(event.urlAfterRedirects));
+      });
+  }
 }
