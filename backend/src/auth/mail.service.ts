@@ -13,16 +13,17 @@ export class MailService {
   private readonly fromAddress: string;
 
   constructor() {
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT ?? 587);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+    const host = process.env.SMTP_HOST?.trim();
+    const rawPort = process.env.SMTP_PORT?.trim() || '587';
+    const port = Number(rawPort);
+    const user = process.env.SMTP_USER?.trim();
+    const pass = process.env.SMTP_PASS?.trim();
 
     this.fromAddress = process.env.SMTP_FROM ?? user ?? 'no-reply@barberia.local';
 
     if (!host || !user || !pass || !Number.isFinite(port)) {
       this.logger.warn(
-        'SMTP no configurado. Los correos de verificacion y alerta no se enviaran.',
+        `SMTP no configurado. host=${Boolean(host)} user=${Boolean(user)} pass=${Boolean(pass)} portValido=${Number.isFinite(port)} rawPort=${rawPort}`,
       );
       this.transporter = null;
       return;
