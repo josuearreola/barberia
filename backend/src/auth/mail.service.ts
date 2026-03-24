@@ -2,42 +2,28 @@ import {
   Injectable,
   Logger,
   InternalServerErrorException,
-  ServiceUnavailableException,
+  BadRequestException,
 } from '@nestjs/common';
-import nodemailer, { type Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter: Transporter | null;
+  private readonly resend: Resend;
   private readonly fromAddress: string;
 
   constructor() {
-    const host = process.env.SMTP_HOST?.trim();
-    const rawPort = process.env.SMTP_PORT?.trim() || '587';
-    const port = Number(rawPort);
-    const user = process.env.SMTP_USER?.trim();
-    const pass = process.env.SMTP_PASS?.trim();
+    const apiKey = process.env.RESEND_API_KEY?.trim();
 
-    this.fromAddress = process.env.SMTP_FROM ?? user ?? 'no-reply@barberia.local';
-
-    if (!host || !user || !pass || !Number.isFinite(port)) {
-      this.logger.warn(
-        `SMTP no configurado. host=${Boolean(host)} user=${Boolean(user)} pass=${Boolean(pass)} portValido=${Number.isFinite(port)} rawPort=${rawPort}`,
+    if (!apiKey) {
+      throw new BadRequestException(
+        'RESEND_API_KEY no configurada. Agrega la variable de entorno RESEND_API_KEY en Railway.',
       );
-      this.transporter = null;
-      return;
     }
 
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-    });
+    this.resend = new Resend(apiKey);
+    this.fromAddress = process.env.RESEND_FROM ?? 'onboarding@resend.dev';
+    this.logger.log(`MailService inicializado con dominio: ${this.fromAddress}`);
   }
 
   async sendRegistrationVerification(email: string, verifyUrl: string): Promise<void> {
@@ -91,23 +77,33 @@ export class MailService {
     html: string,
     text: string,
   ): Promise<void> {
-    if (!this.transporter) {
-      throw new ServiceUnavailableException(
-        'El servicio de correo no esta configurado. Define SMTP_HOST, SMTP_PORT, SMTP_USER y SMTP_PASS.',
-      );
-    }
-
     try {
-      await this.transporter.sendMail({
+      const result = await this.resend.emails.send({
         from: this.fromAddress,
         to,
         subject,
         html,
         text,
       });
+
+      if (result.error) {
+        this.logger.error(
+          `Resend error enviando a ${to}: ${JSON.stringify(result.error)}`,
+        );
+        throw new InternalServerErrorException(
+          'No se pudo enviar el correo de verificacion.',
+        );
+      }
+
+      this.logger.log(`Correo enviado exitosamente a ${to} (ID: ${result.data?.id})`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
       this.logger.error(`No se pudo enviar correo a ${to}: ${message}`);
+
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException(
         'No se pudo enviar el correo de verificacion.',
       );

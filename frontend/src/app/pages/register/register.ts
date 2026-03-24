@@ -2,8 +2,9 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
-import { catchError, finalize, timeout } from 'rxjs/operators';
+import { catchError, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 
 @Component({
@@ -55,9 +56,23 @@ export class Register {
         password,
       })
       .pipe(
-        timeout(4000),
-        catchError(() => {
-          this.errorMessage.set('No se pudo iniciar el registro o se agoto el tiempo.');
+        catchError((error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            const backendMessage =
+              (typeof error.error?.message === 'string' && error.error.message) ||
+              (typeof error.error === 'string' && error.error) ||
+              '';
+
+            this.errorMessage.set(
+              backendMessage ||
+                'No se pudo iniciar el registro. Verifica tu conexion e intenta de nuevo.',
+            );
+          } else {
+            this.errorMessage.set(
+              'No se pudo iniciar el registro. Verifica tu conexion e intenta de nuevo.',
+            );
+          }
+
           return of(null);
         }),
         finalize(() => {

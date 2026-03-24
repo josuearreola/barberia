@@ -32,7 +32,7 @@ export class AuthService {
   private readonly userSubject = new BehaviorSubject<User | null>(null);
   private hasResolvedSession = false;
   private activeSessionRequest$: Observable<User | null> | null = null;
-  private readonly requestTimeoutMs = 6000;
+  private readonly requestTimeoutMs = 15000;
   readonly user$ = this.userSubject.asObservable();
 
   constructor(private readonly http: HttpClient) { }
