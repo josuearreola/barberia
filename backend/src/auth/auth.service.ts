@@ -76,6 +76,24 @@ export class AuthService {
       throw new BadRequestException('Token de verificacion invalido');
     }
 
+    // Algunos proveedores de correo abren enlaces para escanearlos; si el
+    // token ya creo la cuenta anteriormente, tratamos esta confirmacion como valida.
+    const existingUser = await this.usersService.findByEmailWithPassword(
+      payload.email,
+    );
+
+    if (existingUser) {
+      if (existingUser.passwordHash !== payload.passwordHash) {
+        throw new BadRequestException('El correo ya esta registrado');
+      }
+
+      const safeUser = this.usersService.sanitize(existingUser);
+      return {
+        user: safeUser,
+        accessToken: await this.issueAccessToken(safeUser),
+      };
+    }
+
     const user = await this.usersService.createWithPasswordHash({
       usuario: payload.usuario,
       telefono: payload.telefono,
