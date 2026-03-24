@@ -91,6 +91,7 @@
               type="date"
               id="date"
               [(ngModel)]="bookingForm.date"
+              (change)="onDateChange()"
               name="date"
               required
             />
@@ -102,26 +103,30 @@
           <!-- Hora -->
           <div class="form-group">
             <label for="time">Hora *</label>
-            <select
-              id="time"
-              [(ngModel)]="bookingForm.time"
-              name="time"
-              required
-            >
-              <option value="">Selecciona una hora</option>
-              @for (time of timeSlots; track time) {
-                <option [value]="time">{{ time }}</option>
-              }
-            </select>
+            @if (dateError) {
+              <div class="field-error">{{ dateError }}</div>
+            } @else {
+              <select
+                id="time"
+                [(ngModel)]="bookingForm.time"
+                name="time"
+                required
+              >
+                <option value="">{{ availableTimeSlots().length === 0 ? 'Sin horarios disponibles' : 'Selecciona una hora' }}</option>
+                @for (time of availableTimeSlots(); track time) {
+                  <option [value]="time">{{ time }}</option>
+                }
+              </select>
+            }
             @if (timeError) {
             <div class="field-error">{{ timeError }}</div>
             }
           </div>
 
           <!-- Mensajes de éxito/error -->
-          @if (submitMessage) {
-            <div class="submit-message" [class.error]="submitError" [class.success]="!submitError">
-              {{ submitMessage }}
+          @if (submitMessage()) {
+            <div class="submit-message" [class.error]="submitError()" [class.success]="!submitError()">
+              {{ submitMessage() }}
             </div>
           }
 
@@ -129,9 +134,9 @@
           <button
             type="submit"
             class="submit-btn"
-            [disabled]="!isFormValid() || isSubmitting"
+            [disabled]="!isFormValid() || isSubmitting()"
           >
-            {{ isSubmitting ? 'Procesando...' : 'Confirmar Reserva' }}
+            {{ isSubmitting() ? 'Procesando...' : 'Confirmar Reserva' }}
           </button>
         </form>
       </div>

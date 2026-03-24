@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, catchError, of, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, of, shareReplay, tap } from 'rxjs';
+import { finalize, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { User } from '../models/user.model';
 
@@ -22,35 +23,70 @@ export interface RegisterPayload {
 export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly userSubject = new BehaviorSubject<User | null>(null);
+  private hasResolvedSession = false;
+  private activeSessionRequest$: Observable<User | null> | null = null;
+  private readonly requestTimeoutMs = 6000;
   readonly user$ = this.userSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) { }
 
-  loadSession(): Observable<User | null> {
-    return this.http.get<User>(`${this.apiUrl}/me`).pipe(
-      tap((user) => this.userSubject.next(user)),
+  loadSession(force = false): Observable<User | null> {
+    if (!force && this.hasResolvedSession) {
+      return of(this.userSubject.value);
+    }
+
+    if (!force && this.activeSessionRequest$) {
+      return this.activeSessionRequest$;
+    }
+
+    const request$ = this.http.get<User | null>(`${this.apiUrl}/me`).pipe(
+      timeout(this.requestTimeoutMs),
+      tap((user) => {
+        this.userSubject.next(user);
+        this.hasResolvedSession = true;
+      }),
       catchError(() => {
         this.userSubject.next(null);
+        this.hasResolvedSession = true;
         return of(null);
-      })
+      }),
+      finalize(() => {
+        this.activeSessionRequest$ = null;
+      }),
+      shareReplay(1),
     );
+
+    this.activeSessionRequest$ = request$;
+    return request$;
   }
 
   login(payload: LoginPayload): Observable<User> {
     return this.http.post<User>(`${this.apiUrl}/login`, payload).pipe(
-      tap((user) => this.userSubject.next(user))
+      timeout(this.requestTimeoutMs),
+      tap((user) => {
+        this.userSubject.next(user);
+        this.hasResolvedSession = true;
+      })
     );
   }
 
   register(payload: RegisterPayload): Observable<User> {
     return this.http.post<User>(`${this.apiUrl}/register`, payload).pipe(
-      tap((user) => this.userSubject.next(user))
+      timeout(this.requestTimeoutMs),
+      tap((user) => {
+        this.userSubject.next(user);
+        this.hasResolvedSession = true;
+      })
     );
   }
 
   logout(): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/logout`, {}).pipe(
-      tap(() => this.userSubject.next(null))
+      timeout(this.requestTimeoutMs),
+      tap(() => {
+        this.userSubject.next(null);
+        this.hasResolvedSession = true;
+      })
     );
   }
 }

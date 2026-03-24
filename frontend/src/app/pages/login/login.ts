@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -16,22 +16,22 @@ import { of } from 'rxjs';
 export class Login {
   email = '';
   password = '';
-  errorMessage = '';
-  isSubmitting = false;
-  submitted = false;
+  errorMessage = signal('');
+  isSubmitting = signal(false);
+  submitted = signal(false);
 
   constructor(
-    private authService: AuthService,
-    private router: Router,
+    private readonly authService: AuthService,
+    private readonly router: Router,
   ) {}
 
   onSubmit(): void {
-    if (this.isSubmitting) {
+    if (this.isSubmitting()) {
       return;
     }
 
-    this.submitted = true;
-    this.errorMessage = '';
+    this.submitted.set(true);
+    this.errorMessage.set('');
 
     const email = this.email.trim();
     const password = this.password.trim();
@@ -40,7 +40,7 @@ export class Login {
       return;
     }
 
-    this.isSubmitting = true;
+    this.isSubmitting.set(true);
 
     this.authService
       .login({ email, password })
@@ -48,38 +48,38 @@ export class Login {
         timeout(4000),
         catchError((error) => {
           const isTimeout = error?.name === 'TimeoutError';
-          this.errorMessage = isTimeout
+          this.errorMessage.set(isTimeout
             ? 'Tiempo de espera agotado. Intenta de nuevo.'
-            : 'Credenciales invalidas.';
+            : 'Credenciales invalidas.');
           return of(null);
         }),
         finalize(() => {
-          this.isSubmitting = false;
+          this.isSubmitting.set(false);
         })
       )
       .subscribe((user) => {
         if (!user) {
-          if (!this.errorMessage) {
-            this.errorMessage = 'Credenciales invalidas.';
+          if (!this.errorMessage()) {
+            this.errorMessage.set('Credenciales invalidas.');
           }
           return;
         }
 
-        const target = user.role === 'admin' ? '/admin/citas' : '/';
+        const target = user.role === 'admin' ? '/admin' : '/';
         this.router.navigate([target]);
       });
   }
 
   onFieldInput(): void {
-    if (this.errorMessage) {
-      this.errorMessage = '';
+    if (this.errorMessage()) {
+      this.errorMessage.set('');
     }
   }
 
   get emailError(): string | null {
     const value = this.email.trim();
     if (!value) {
-      return this.submitted ? 'El email es requerido.' : null;
+      return this.submitted() ? 'El email es requerido.' : null;
     }
 
     return this.isValidEmail(value) ? null : 'Ingresa un email valido.';
@@ -88,7 +88,7 @@ export class Login {
   get passwordError(): string | null {
     const value = this.password.trim();
     if (!value) {
-      return this.submitted ? 'La contrasena es requerida.' : null;
+      return this.submitted() ? 'La contrasena es requerida.' : null;
     }
 
     return value.length >= 6 ? null : 'La contrasena debe tener al menos 6 caracteres.';

@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 
 @Component({
     selector: 'app-services',
@@ -7,6 +8,8 @@ import { Component } from '@angular/core';
     styleUrl: './services.css',
 })
 export class Services {
+    private readonly platformId = inject(PLATFORM_ID);
+
     services = [
         {
             id: 1,
@@ -65,6 +68,10 @@ export class Services {
     ];
 
     scrollToSection(sectionId: string): void {
+        if (!isPlatformBrowser(this.platformId)) {
+            return;
+        }
+
         const element = document.getElementById(sectionId);
         if (element) {
             element.scrollIntoView({

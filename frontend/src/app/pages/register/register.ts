@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -18,9 +18,9 @@ export class Register {
   telefono = '';
   email = '';
   password = '';
-  errorMessage = '';
-  isSubmitting = false;
-  submitted = false;
+  errorMessage = signal('');
+  isSubmitting = signal(false);
+  submitted = signal(false);
 
   constructor(
     private authService: AuthService,
@@ -28,12 +28,12 @@ export class Register {
   ) {}
 
   onSubmit(): void {
-    if (this.isSubmitting) {
+    if (this.isSubmitting()) {
       return;
     }
 
-    this.submitted = true;
-    this.errorMessage = '';
+    this.submitted.set(true);
+    this.errorMessage.set('');
 
     const usuario = this.usuario.trim();
     const telefono = this.telefono.trim();
@@ -44,7 +44,7 @@ export class Register {
       return;
     }
 
-    this.isSubmitting = true;
+    this.isSubmitting.set(true);
 
     this.authService
       .register({
@@ -56,11 +56,11 @@ export class Register {
       .pipe(
         timeout(4000),
         catchError(() => {
-          this.errorMessage = 'No se pudo crear la cuenta o se agoto el tiempo.';
+          this.errorMessage.set('No se pudo crear la cuenta o se agoto el tiempo.');
           return of(null);
         }),
         finalize(() => {
-          this.isSubmitting = false;
+          this.isSubmitting.set(false);
         })
       )
       .subscribe((user) => {
@@ -75,7 +75,7 @@ export class Register {
   get usuarioError(): string | null {
     const value = this.usuario.trim();
     if (!value) {
-      return this.submitted ? 'El usuario es requerido.' : null;
+      return this.submitted() ? 'El usuario es requerido.' : null;
     }
 
     return value.length >= 3 ? null : 'El usuario debe tener al menos 3 caracteres.';
@@ -84,7 +84,7 @@ export class Register {
   get telefonoError(): string | null {
     const value = this.telefono.trim();
     if (!value) {
-      return this.submitted ? 'El telefono es requerido.' : null;
+      return this.submitted() ? 'El telefono es requerido.' : null;
     }
 
     return this.isValidPhone(value) ? null : 'Ingresa un telefono valido.';
@@ -93,7 +93,7 @@ export class Register {
   get emailError(): string | null {
     const value = this.email.trim();
     if (!value) {
-      return this.submitted ? 'El email es requerido.' : null;
+      return this.submitted() ? 'El email es requerido.' : null;
     }
 
     return this.isValidEmail(value) ? null : 'Ingresa un email valido.';
@@ -102,7 +102,7 @@ export class Register {
   get passwordError(): string | null {
     const value = this.password.trim();
     if (!value) {
-      return this.submitted ? 'La contrasena es requerida.' : null;
+      return this.submitted() ? 'La contrasena es requerida.' : null;
     }
 
     return value.length >= 6 ? null : 'La contrasena debe tener al menos 6 caracteres.';

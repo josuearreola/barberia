@@ -42,14 +42,14 @@
         }
       </div>
 
-      @if (errorMessage) {
+      @if (errorMessage()) {
         <div class="auth-message error">
-          {{ errorMessage }}
+          {{ errorMessage() }}
         </div>
       }
 
-      <button class="submit-btn" type="submit" [disabled]="isSubmitting">
-        {{ isSubmitting ? 'Entrando...' : 'Entrar' }}
+      <button class="submit-btn" type="submit" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Entrando...' : 'Entrar' }}
       </button>
     </form>
 

@@ -25,6 +25,11 @@ export const routes: Routes = [
     },
     {
         path: 'admin/citas',
+        redirectTo: 'admin',
+        pathMatch: 'full'
+    },
+    {
+        path: 'admin',
         component: AdminAppointments,
         canActivate: [adminGuard]
     },

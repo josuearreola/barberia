@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, inject, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -15,8 +15,12 @@ import { Observable } from 'rxjs';
 export class Header {
   searchQuery: string = '';
   readonly user$: Observable<User | null>;
+  private readonly platformId = inject(PLATFORM_ID);
 
-  constructor(private router: Router, private authService: AuthService) {
+  constructor(
+    private readonly router: Router,
+    private readonly authService: AuthService,
+  ) {
     this.user$ = this.authService.user$;
   }
 
@@ -25,7 +29,7 @@ export class Header {
     this.router.navigate(['/']);
   }
 
-  private searchableSections = [
+  private readonly searchableSections = [
     { id: 'inicio', keywords: ['inicio', 'principal'] },
     { id: 'servicios', keywords: ['servicios', 'cortes', 'barba', 'afeitado', 'services'] },
     { id: 'agendar', keywords: ['agendar', 'cita', 'reservar', 'appointment', 'reserva'] },
@@ -38,8 +42,12 @@ export class Header {
     }
 
     this.authService.logout().subscribe({
-      next: () => this.router.navigate(['/']),
-      error: () => this.router.navigate(['/'])
+      next: () => {
+        void this.router.navigate(['/']);
+      },
+      error: () => {
+        void this.router.navigate(['/']);
+      },
     });
   }
 
@@ -61,6 +69,10 @@ export class Header {
   }
 
   private scrollToSection(sectionId: string): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ 
