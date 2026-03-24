@@ -1,13 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { setDefaultResultOrder } from 'node:dns';
 import type { Express } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
   const isProduction = process.env.NODE_ENV === 'production';
+
+  // Railway puede no tener salida IPv6; preferimos IPv4 para SMTP/API externos.
+  if (isProduction) {
+    setDefaultResultOrder('ipv4first');
+  }
+
+  const app = await NestFactory.create(AppModule);
 
   const allowedOrigins = (
     process.env.FRONTEND_URLS ||
