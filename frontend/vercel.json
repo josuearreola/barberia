@@ -3,6 +3,10 @@
     {
       "source": "/api/(.*)",
       "destination": "https://TU_BACKEND_RAILWAY_URL/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
