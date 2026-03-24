@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, catchError, of, shareReplay, tap } from 'rxjs';
 import { finalize, timeout } from 'rxjs/operators';
@@ -22,6 +23,7 @@ export interface RegisterPayload {
 })
 export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly userSubject = new BehaviorSubject<User | null>(null);
   private hasResolvedSession = false;
   private activeSessionRequest$: Observable<User | null> | null = null;
@@ -31,6 +33,12 @@ export class AuthService {
   constructor(private readonly http: HttpClient) { }
 
   loadSession(force = false): Observable<User | null> {
+    if (!isPlatformBrowser(this.platformId)) {
+      this.userSubject.next(null);
+      this.hasResolvedSession = true;
+      return of(null);
+    }
+
     if (!force && this.hasResolvedSession) {
       return of(this.userSubject.value);
     }
