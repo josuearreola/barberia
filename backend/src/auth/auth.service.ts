@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
@@ -32,6 +33,8 @@ const bcryptClient = bcrypt as {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -123,11 +126,18 @@ export class AuthService {
     const ip = this.getIp(req);
     const userAgent = String(req.headers['user-agent'] || 'Desconocido');
 
-    await this.mailService.sendLoginAlert(user.email, {
-      ip,
-      userAgent,
-      logoutEverywhereUrl,
-    });
+    try {
+      await this.mailService.sendLoginAlert(user.email, {
+        ip,
+        userAgent,
+        logoutEverywhereUrl,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.warn(
+        `No se pudo enviar alerta de login a ${user.email}: ${message}`,
+      );
+    }
   }
 
   async revokeAllSessionsByToken(token: string) {

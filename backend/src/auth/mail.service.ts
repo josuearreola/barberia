@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import nodemailer, { type Transporter } from 'nodemailer';
 
 @Injectable()
@@ -86,7 +91,9 @@ export class MailService {
     text: string,
   ): Promise<void> {
     if (!this.transporter) {
-      return;
+      throw new ServiceUnavailableException(
+        'El servicio de correo no esta configurado. Define SMTP_HOST, SMTP_PORT, SMTP_USER y SMTP_PASS.',
+      );
     }
 
     try {
@@ -100,6 +107,9 @@ export class MailService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
       this.logger.error(`No se pudo enviar correo a ${to}: ${message}`);
+      throw new InternalServerErrorException(
+        'No se pudo enviar el correo de verificacion.',
+      );
     }
   }
 }
