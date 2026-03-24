@@ -26,7 +26,7 @@ import { AuthModule } from './auth/auth.module';
         ssl: {
           rejectUnauthorized: false,
         },
-        logging: true,
+        logging: false,
       }),
     }),
     ThrottlerModule.forRoot([

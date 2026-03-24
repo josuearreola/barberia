@@ -33,8 +33,24 @@ export class AppointmentsController {
   @Get()
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.Admin)
-  findAll(@Query('fecha') fecha?: string, @Query('estado') estado?: string) {
-    return this.appointmentsService.findAll({ fecha, estado });
+  findAll(
+    @Query('fecha') fecha?: string,
+    @Query('estado') estado?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDir') sortDir?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<unknown> {
+    return this.appointmentsService.findAll({
+      fecha,
+      estado,
+      search,
+      sortBy,
+      sortDir,
+      page: Number(page),
+      limit: Number(limit),
+    });
   }
 
   @Get(':id')
@@ -61,7 +77,10 @@ export class AppointmentsController {
   @Patch(':id')
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.Admin)
-  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateAppointmentDto: UpdateAppointmentDto,
+  ) {
     return this.appointmentsService.update(+id, updateAppointmentDto);
   }
 

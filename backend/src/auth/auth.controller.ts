@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -31,7 +39,7 @@ export class AuthController {
     return new Promise<{ ok: boolean }>((resolve, reject) => {
       req.session.destroy((err) => {
         if (err) {
-          reject(err);
+          reject(new Error('No se pudo cerrar la sesion'));
           return;
         }
 
@@ -47,6 +55,10 @@ export class AuthController {
       return null;
     }
 
-    return this.authService.getProfile(userId);
+    try {
+      return await this.authService.getProfile(userId);
+    } catch {
+      return null;
+    }
   }
 }

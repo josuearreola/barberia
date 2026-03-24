@@ -1,15 +1,37 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 
+export interface FindAppointmentsOptions {
+  fecha?: string;
+  estado?: string;
+  search?: string;
+  sortBy?: string;
+  sortDir?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectRepository(Appointment)
-    private appointmentsRepository: Repository<Appointment>,
+    private readonly appointmentsRepository: Repository<Appointment>,
   ) {}
 
   async create(
@@ -32,26 +54,67 @@ export class AppointmentsService {
     return await this.appointmentsRepository.save(appointment);
   }
 
-  async findAll(filters?: {
-    fecha?: string;
-    estado?: string;
-  }): Promise<Appointment[]> {
-    const where: Record<string, string> = {};
+  async findAll(
+    options: FindAppointmentsOptions = {},
+  ): Promise<PaginatedResult<Appointment>> {
+    const page =
+      Number.isFinite(options.page) && Number(options.page) > 0
+        ? Number(options.page)
+        : 1;
+    const limitCandidate = Number.isFinite(options.limit)
+      ? Number(options.limit)
+      : 10;
+    const limit = Math.min(Math.max(limitCandidate, 1), 50);
 
-    if (filters?.fecha) {
-      where.fechaCita = filters.fecha;
+    const sortMap: Record<string, string> = {
+      creadoEn: 'appointment.creadoEn',
+      fechaCita: 'appointment.fechaCita',
+      estado: 'appointment.estado',
+      nombreCompleto: 'appointment.nombreCompleto',
+      servicio: 'appointment.servicio',
+    };
+
+    const sortBy = sortMap[options.sortBy ?? ''] ?? 'appointment.creadoEn';
+    const sortDir: 'ASC' | 'DESC' =
+      (options.sortDir ?? 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const query = this.appointmentsRepository.createQueryBuilder('appointment');
+
+    if (options.fecha) {
+      query.andWhere('appointment.fechaCita = :fecha', {
+        fecha: options.fecha,
+      });
     }
 
-    if (filters?.estado) {
-      where.estado = filters.estado;
+    if (options.estado) {
+      query.andWhere('appointment.estado = :estado', {
+        estado: options.estado,
+      });
     }
 
-    return await this.appointmentsRepository.find({
-      where: Object.keys(where).length ? where : undefined,
-      order: {
-        creadoEn: 'DESC',
-      },
-    });
+    if (options.search) {
+      const search = `%${options.search.trim().toLowerCase()}%`;
+      query.andWhere(
+        `(LOWER(appointment.nombreCompleto) LIKE :search
+          OR LOWER(appointment.telefono) LIKE :search
+          OR LOWER(COALESCE(appointment.correo, '')) LIKE :search
+          OR LOWER(appointment.servicio) LIKE :search)`,
+        { search },
+      );
+    }
+
+    query.orderBy(sortBy, sortDir);
+    query.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: total === 0 ? 1 : Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: number): Promise<Appointment> {

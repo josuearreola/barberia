@@ -1,8 +1,35 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User, UserRole } from './entities/user.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
+
+const bcryptClient = bcrypt as {
+  hash(password: string, rounds: number): Promise<string>;
+  compare(password: string, passwordHash: string): Promise<boolean>;
+};
+
+export interface FindUsersOptions {
+  search?: string;
+  role?: UserRole;
+  sortBy?: string;
+  sortDir?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 export interface CreateUserData {
   usuario: string;
@@ -37,13 +64,13 @@ export class UsersService {
     }
 
     const saltRounds = Number(process.env.BCRYPT_ROUNDS ?? 10);
-    const safeRounds = Number.isFinite(saltRounds) && saltRounds >= 8 ? saltRounds : 10;
-    const passwordHash = await bcrypt.hash(data.password, safeRounds);
+    const safeRounds =
+      Number.isFinite(saltRounds) && saltRounds >= 8 ? saltRounds : 10;
     const user = this.usersRepository.create({
       usuario: data.usuario,
       telefono: data.telefono,
       email: data.email,
-      passwordHash,
+      passwordHash: await bcryptClient.hash(data.password, safeRounds),
       role: data.role ?? UserRole.Cliente,
     });
 
@@ -68,13 +95,72 @@ export class UsersService {
     return user;
   }
 
-  async validatePassword(email: string, password: string): Promise<User | null> {
+  async findAll(
+    options: FindUsersOptions = {},
+  ): Promise<PaginatedResult<User>> {
+    const page =
+      Number.isFinite(options.page) && Number(options.page) > 0
+        ? Number(options.page)
+        : 1;
+    const limitCandidate = Number.isFinite(options.limit)
+      ? Number(options.limit)
+      : 10;
+    const limit = Math.min(Math.max(limitCandidate, 1), 50);
+
+    const sortMap: Record<string, string> = {
+      creadoEn: 'user.creadoEn',
+      usuario: 'user.usuario',
+      email: 'user.email',
+      role: 'user.role',
+    };
+
+    const sortBy = sortMap[options.sortBy ?? ''] ?? 'user.creadoEn';
+    const sortDir: 'ASC' | 'DESC' =
+      (options.sortDir ?? 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const query = this.usersRepository.createQueryBuilder('user');
+
+    if (
+      options.role &&
+      (options.role === UserRole.Admin || options.role === UserRole.Cliente)
+    ) {
+      query.andWhere('user.role = :role', { role: options.role });
+    }
+
+    if (options.search) {
+      const search = `%${options.search.trim().toLowerCase()}%`;
+      query.andWhere(
+        `(LOWER(user.usuario) LIKE :search
+          OR LOWER(user.email) LIKE :search
+          OR LOWER(user.telefono) LIKE :search)`,
+        { search },
+      );
+    }
+
+    query.orderBy(sortBy, sortDir);
+    query.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: total === 0 ? 1 : Math.ceil(total / limit),
+    };
+  }
+
+  async validatePassword(
+    email: string,
+    password: string,
+  ): Promise<User | null> {
     const user = await this.findByEmailWithPassword(email);
     if (!user) {
       return null;
     }
 
-    const matches = await bcrypt.compare(password, user.passwordHash);
+    const matches = await bcryptClient.compare(password, user.passwordHash);
     if (!matches) {
       return null;
     }
@@ -82,8 +168,46 @@ export class UsersService {
     return this.sanitize(user);
   }
 
+  async update(id: number, data: UpdateUserDto): Promise<User> {
+    const user = await this.findById(id);
+
+    if (data.email && data.email !== user.email) {
+      const existingEmail = await this.usersRepository.findOne({
+        where: { email: data.email },
+      });
+      if (existingEmail && existingEmail.id !== user.id) {
+        throw new ConflictException('El email ya esta registrado');
+      }
+    }
+
+    if (data.usuario && data.usuario !== user.usuario) {
+      const existingUser = await this.usersRepository.findOne({
+        where: { usuario: data.usuario },
+      });
+      if (existingUser && existingUser.id !== user.id) {
+        throw new ConflictException('El usuario ya esta registrado');
+      }
+    }
+
+    Object.assign(user, data);
+    const updated = await this.usersRepository.save(user);
+    return this.sanitize(updated);
+  }
+
+  async remove(id: number): Promise<void> {
+    const user = await this.findById(id);
+    await this.usersRepository.remove(user);
+  }
+
   sanitize(user: User): User {
-    const { passwordHash, ...safeUser } = user as User & { passwordHash?: string };
-    return safeUser as User;
+    return {
+      id: user.id,
+      usuario: user.usuario,
+      telefono: user.telefono,
+      email: user.email,
+      role: user.role,
+      creadoEn: user.creadoEn,
+      actualizadoEn: user.actualizadoEn,
+    } as User;
   }
 }

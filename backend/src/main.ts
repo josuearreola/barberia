@@ -1,13 +1,33 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { Express } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  const expressApp = app.getHttpAdapter().getInstance();
+  const allowedOrigins = (
+    process.env.FRONTEND_URLS ||
+    process.env.FRONTEND_URL ||
+    'http://localhost:4200'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (isProduction && !sessionSecret) {
+    throw new Error('SESSION_SECRET is required in production');
+  }
+
+  const sessionSameSite =
+    (process.env.SESSION_SAME_SITE as 'lax' | 'strict' | 'none' | undefined) ||
+    'lax';
+
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
   expressApp.set('trust proxy', 1);
 
   app.use(helmet());
@@ -15,13 +35,13 @@ async function bootstrap() {
   app.use(
     session({
       name: 'barbershop.sid',
-      secret: process.env.SESSION_SECRET || 'dev_session_secret',
+      secret: sessionSecret || 'dev_session_secret',
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        sameSite: sessionSameSite,
+        secure: sessionSameSite === 'none' ? true : isProduction,
         maxAge: 1000 * 60 * 60 * 8,
       },
     }),
@@ -29,7 +49,7 @@ async function bootstrap() {
 
   // Habilitar CORS para el frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -46,6 +66,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   await app.listen(process.env.PORT ?? 3000);
-  console.log(`🚀 Servidor corriendo en http://localhost:${process.env.PORT ?? 3000}/api`);
+  console.log(
+    `Servidor corriendo en http://localhost:${process.env.PORT ?? 3000}/api`,
+  );
+  console.log(`CORS habilitado para: ${allowedOrigins.join(', ')}`);
 }
-bootstrap();
+void bootstrap();
