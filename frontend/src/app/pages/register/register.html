@@ -81,6 +81,12 @@
         </div>
       }
 
+      @if (successMessage()) {
+        <div class="auth-message success">
+          {{ successMessage() }}
+        </div>
+      }
+
       <button class="submit-btn" type="submit" [disabled]="isSubmitting()">
         {{ isSubmitting() ? 'Creando...' : 'Crear cuenta' }}
       </button>

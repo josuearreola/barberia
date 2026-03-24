@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { catchError, finalize, timeout } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -19,12 +19,12 @@ export class Register {
   email = '';
   password = '';
   errorMessage = signal('');
+  successMessage = signal('');
   isSubmitting = signal(false);
   submitted = signal(false);
 
   constructor(
     private authService: AuthService,
-    private router: Router,
   ) {}
 
   onSubmit(): void {
@@ -34,6 +34,7 @@ export class Register {
 
     this.submitted.set(true);
     this.errorMessage.set('');
+    this.successMessage.set('');
 
     const usuario = this.usuario.trim();
     const telefono = this.telefono.trim();
@@ -56,19 +57,27 @@ export class Register {
       .pipe(
         timeout(4000),
         catchError(() => {
-          this.errorMessage.set('No se pudo crear la cuenta o se agoto el tiempo.');
+          this.errorMessage.set('No se pudo iniciar el registro o se agoto el tiempo.');
           return of(null);
         }),
         finalize(() => {
           this.isSubmitting.set(false);
         })
       )
-      .subscribe((user) => {
-        if (!user) {
+      .subscribe((response) => {
+        if (!response) {
           return;
         }
 
-        this.router.navigate(['/']);
+        this.usuario = '';
+        this.telefono = '';
+        this.email = '';
+        this.password = '';
+        this.submitted.set(false);
+        this.successMessage.set(
+          response.message ||
+            'Te enviamos un correo para confirmar tu cuenta antes de iniciar sesion.',
+        );
       });
   }
 

@@ -18,6 +18,11 @@ export interface RegisterPayload {
   password: string;
 }
 
+export interface RegisterRequestResponse {
+  ok: boolean;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -78,12 +83,15 @@ export class AuthService {
     );
   }
 
-  register(payload: RegisterPayload): Observable<User> {
-    return this.http.post<User>(`${this.apiUrl}/register`, payload).pipe(
+  register(payload: RegisterPayload): Observable<RegisterRequestResponse> {
+    return this.http
+      .post<RegisterRequestResponse>(`${this.apiUrl}/register`, payload)
+      .pipe(
       timeout(this.requestTimeoutMs),
-      tap((user) => {
-        this.userSubject.next(user);
-        this.hasResolvedSession = true;
+      tap(() => {
+        // El registro ahora requiere confirmacion de email; no inicia sesion aqui.
+        this.userSubject.next(null);
+        this.hasResolvedSession = false;
       })
     );
   }

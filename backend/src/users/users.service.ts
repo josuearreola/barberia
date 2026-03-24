@@ -39,6 +39,14 @@ export interface CreateUserData {
   role?: UserRole;
 }
 
+export interface CreateUserWithHashData {
+  usuario: string;
+  telefono: string;
+  email: string;
+  passwordHash: string;
+  role?: UserRole;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -47,6 +55,16 @@ export class UsersService {
   ) {}
 
   async create(data: CreateUserData): Promise<User> {
+    return this.createInternal(data);
+  }
+
+  async createWithPasswordHash(data: CreateUserWithHashData): Promise<User> {
+    return this.createInternal(data);
+  }
+
+  private async createInternal(
+    data: CreateUserData | CreateUserWithHashData,
+  ): Promise<User> {
     const existingEmail = await this.usersRepository.findOne({
       where: { email: data.email },
     });
@@ -63,19 +81,29 @@ export class UsersService {
       throw new ConflictException('El usuario ya esta registrado');
     }
 
-    const saltRounds = Number(process.env.BCRYPT_ROUNDS ?? 10);
-    const safeRounds =
-      Number.isFinite(saltRounds) && saltRounds >= 8 ? saltRounds : 10;
+    const passwordHash =
+      'password' in data
+        ? await this.hashPassword(data.password)
+        : data.passwordHash;
+
     const user = this.usersRepository.create({
       usuario: data.usuario,
       telefono: data.telefono,
       email: data.email,
-      passwordHash: await bcryptClient.hash(data.password, safeRounds),
+      passwordHash,
       role: data.role ?? UserRole.Cliente,
     });
 
     const saved = await this.usersRepository.save(user);
     return this.sanitize(saved);
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = Number(process.env.BCRYPT_ROUNDS ?? 10);
+    const safeRounds =
+      Number.isFinite(saltRounds) && saltRounds >= 8 ? saltRounds : 10;
+
+    return bcryptClient.hash(password, safeRounds);
   }
 
   async findByEmailWithPassword(email: string): Promise<User | null> {

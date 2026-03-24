@@ -1,17 +1,94 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import type { Request } from 'express';
+import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { MailService } from './mail.service';
+import { SecuritySessionsService } from './security-sessions.service';
+
+type RegisterTokenPayload = {
+  type: 'register';
+  usuario: string;
+  telefono: string;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+};
+
+type SecurityLogoutTokenPayload = {
+  type: 'security-logout-all';
+  userId: number;
+};
+
+const bcryptClient = bcrypt as {
+  hash(password: string, rounds: number): Promise<string>;
+};
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
+    private readonly securitySessionsService: SecuritySessionsService,
+  ) {}
+
+  async requestRegistration(dto: RegisterDto) {
+    const role = this.resolveRole(dto.email);
+    const passwordHash = await this.hashPassword(dto.password);
+
+    const token = await this.jwtService.signAsync(
+      {
+        type: 'register',
+        usuario: dto.usuario,
+        telefono: dto.telefono,
+        email: dto.email,
+        passwordHash,
+        role,
+      } satisfies RegisterTokenPayload,
+      {
+        expiresIn: (process.env.REGISTER_TOKEN_EXPIRES_IN || '30m') as any,
+      },
+    );
+
+    const verifyUrl = `${this.getBackendBaseUrl()}/api/auth/register/confirm?token=${encodeURIComponent(token)}`;
+    await this.mailService.sendRegistrationVerification(dto.email, verifyUrl);
+
+    return {
+      ok: true,
+      message:
+        'Te enviamos un correo de confirmacion. Revisa tu bandeja para activar tu cuenta.',
+    };
+  }
+
+  async confirmRegistrationToken(token: string) {
+    const payload = await this.verifyToken<RegisterTokenPayload>(token);
+    if (payload.type !== 'register') {
+      throw new BadRequestException('Token de verificacion invalido');
+    }
+
+    const user = await this.usersService.createWithPasswordHash({
+      usuario: payload.usuario,
+      telefono: payload.telefono,
+      email: payload.email,
+      passwordHash: payload.passwordHash,
+      role: payload.role,
+    });
+
+    return {
+      user,
+      accessToken: await this.issueAccessToken(user),
+    };
+  }
 
   async register(dto: RegisterDto) {
-    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
-    const role = adminEmail && adminEmail === dto.email.toLowerCase()
-      ? UserRole.Admin
-      : UserRole.Cliente;
+    const role = this.resolveRole(dto.email);
 
     return this.usersService.create({
       usuario: dto.usuario,
@@ -31,7 +108,100 @@ export class AuthService {
     return user;
   }
 
+  async notifyLogin(user: User, req: Request): Promise<void> {
+    const token = await this.jwtService.signAsync(
+      {
+        type: 'security-logout-all',
+        userId: user.id,
+      } satisfies SecurityLogoutTokenPayload,
+      {
+        expiresIn: (process.env.SECURITY_LINK_EXPIRES_IN || '20m') as any,
+      },
+    );
+
+    const logoutEverywhereUrl = `${this.getBackendBaseUrl()}/api/auth/security/logout-all?token=${encodeURIComponent(token)}`;
+    const ip = this.getIp(req);
+    const userAgent = String(req.headers['user-agent'] || 'Desconocido');
+
+    await this.mailService.sendLoginAlert(user.email, {
+      ip,
+      userAgent,
+      logoutEverywhereUrl,
+    });
+  }
+
+  async revokeAllSessionsByToken(token: string) {
+    const payload = await this.verifyToken<SecurityLogoutTokenPayload>(token);
+    if (payload.type !== 'security-logout-all') {
+      throw new BadRequestException('Token de seguridad invalido');
+    }
+
+    this.securitySessionsService.revokeAll(payload.userId);
+    return { ok: true };
+  }
+
+  async issueAccessToken(user: User): Promise<string> {
+    return this.jwtService.signAsync(
+      {
+        sub: user.id,
+        role: user.role,
+        email: user.email,
+      },
+      {
+        expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
+      },
+    );
+  }
+
   async getProfile(userId: number) {
     return this.usersService.findById(userId);
+  }
+
+  private async verifyToken<T extends object>(token: string): Promise<T> {
+    try {
+      return await this.jwtService.verifyAsync<T>(token);
+    } catch {
+      throw new BadRequestException('Token invalido o expirado');
+    }
+  }
+
+  private resolveRole(email: string): UserRole {
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+    return adminEmail && adminEmail === email.toLowerCase()
+      ? UserRole.Admin
+      : UserRole.Cliente;
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = Number(process.env.BCRYPT_ROUNDS ?? 10);
+    const safeRounds =
+      Number.isFinite(saltRounds) && saltRounds >= 8 ? saltRounds : 10;
+
+    return bcryptClient.hash(password, safeRounds);
+  }
+
+  private getBackendBaseUrl(): string {
+    const envUrl = process.env.BACKEND_PUBLIC_URL?.trim();
+    if (envUrl) {
+      return envUrl;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException(
+        'BACKEND_PUBLIC_URL no esta configurado para enlaces de seguridad',
+      );
+    }
+
+    const port = process.env.PORT || '3000';
+    return `http://localhost:${port}`;
+  }
+
+  private getIp(req: Request): string {
+    const firstForwarded = req.headers['x-forwarded-for'];
+    if (typeof firstForwarded === 'string' && firstForwarded.length > 0) {
+      return firstForwarded.split(',')[0].trim();
+    }
+
+    return req.ip || 'desconocida';
   }
 }
