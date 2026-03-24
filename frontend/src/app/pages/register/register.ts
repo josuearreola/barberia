@@ -1,7 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { catchError, finalize } from 'rxjs/operators';
@@ -14,7 +14,7 @@ import { of } from 'rxjs';
   templateUrl: './register.html',
   styleUrl: './register.css'
 })
-export class Register {
+export class Register implements OnInit {
   usuario = '';
   telefono = '';
   email = '';
@@ -25,8 +25,23 @@ export class Register {
   submitted = signal(false);
 
   constructor(
-    private authService: AuthService,
+    private readonly authService: AuthService,
+    private readonly route: ActivatedRoute,
   ) {}
+
+  ngOnInit(): void {
+    const verified = this.route.snapshot.queryParamMap.get('verified');
+    if (verified === '0') {
+      this.errorMessage.set(
+        'El enlace de confirmacion es invalido, expiro o ya fue usado. Si ya confirmaste antes, inicia sesion.',
+      );
+      return;
+    }
+
+    if (verified === '1') {
+      this.successMessage.set('Cuenta confirmada. Ya puedes iniciar sesion.');
+    }
+  }
 
   onSubmit(): void {
     if (this.isSubmitting()) {
