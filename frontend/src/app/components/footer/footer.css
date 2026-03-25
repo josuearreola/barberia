@@ -80,7 +80,7 @@
 }
 
 .footer-section ul li::before {
-  content: '✂️';
+  
   position: absolute;
   left: 0;
   font-size: 0.8rem;
