@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'cliente';
+export type UserStatus = 'activo' | 'inactivo';
 
 export interface User {
   id: number;
@@ -6,6 +7,7 @@ export interface User {
   telefono: string;
   email: string;
   role: UserRole;
+  estado: UserStatus;
   creadoEn: string;
   actualizadoEn: string;
 }

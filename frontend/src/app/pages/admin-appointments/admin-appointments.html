@@ -174,12 +174,22 @@
           </select>
         </label>
         <label>
+          Estado
+          <select [(ngModel)]="userFilters.estado">
+            <option value="">Todos</option>
+            @for (status of userStatusOptions; track status) {
+            <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </label>
+        <label>
           Ordenar por
           <select [(ngModel)]="userFilters.sortBy">
             <option value="creadoEn">Creado</option>
             <option value="usuario">Usuario</option>
             <option value="email">Email</option>
             <option value="role">Rol</option>
+            <option value="estado">Estado</option>
           </select>
         </label>
         <label>
@@ -213,13 +223,14 @@
               <th>Telefono</th>
               <th>Email</th>
               <th>Rol</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             @if (isLoadingUsers) {
             <tr>
-              <td class="loading" colspan="5">Cargando usuarios...</td>
+              <td class="loading" colspan="6">Cargando usuarios...</td>
             </tr>
             } @else {
             @for (user of users; track user.id) {
@@ -228,18 +239,21 @@
               <td>{{ user.telefono }}</td>
               <td>{{ user.email }}</td>
               <td>{{ user.role }}</td>
+              <td><span class="status-pill">{{ user.estado }}</span></td>
               <td class="row-actions">
                 <button class="ghost-btn" type="button" [disabled]="isUserPending(user.id)"
                   (click)="startUserEdit(user)">Editar</button>
-                <button class="danger-btn" type="button" [disabled]="isUserPending(user.id)"
-                  (click)="openDeleteUser(user)">Eliminar</button>
+                <button [class]="user.estado === 'activo' ? 'danger-btn' : 'action-btn'" type="button"
+                  [disabled]="isUserPending(user.id)" (click)="openDeleteUser(user)">
+                  {{ user.estado === 'activo' ? 'Dar de baja' : 'Activar' }}
+                </button>
               </td>
             </tr>
             }
       
             @if (!users.length) {
             <tr>
-              <td class="loading" colspan="5">No hay usuarios para esos filtros.</td>
+              <td class="loading" colspan="6">No hay usuarios para esos filtros.</td>
             </tr>
             }
             }
@@ -351,6 +365,11 @@
                     <option [value]="role">{{ role }}</option>
                     }
                   </select>
+                  <select [(ngModel)]="createUserForm.estado" name="createUserEstado">
+                    @for (status of userStatusOptions; track status) {
+                    <option [value]="status">{{ status }}</option>
+                    }
+                  </select>
                 </div>
                 <div class="actions-row">
                   <button class="ghost-btn" type="button" [disabled]="isSubmittingUser"
@@ -380,6 +399,11 @@
                   <option [value]="role">{{ role }}</option>
                   }
                 </select>
+                <select [(ngModel)]="userEditForm.estado" name="editUserEstado">
+                  @for (status of userStatusOptions; track status) {
+                  <option [value]="status">{{ status }}</option>
+                  }
+                </select>
               </div>
               <div class="actions-row">
                 <button class="ghost-btn" type="button" [disabled]="isSavingUser" (click)="cancelUserEdit()">Cancelar</button>
@@ -399,14 +423,20 @@
                 @if (deleteTarget.kind === 'appointment') {
                 Se eliminara la cita de <strong>{{ deleteTarget.label }}</strong>.
                 } @else {
-                Se eliminara el usuario <strong>{{ deleteTarget.label }}</strong>.
+                Se actualizara el estado del usuario: <strong>{{ deleteTarget.label }}</strong>.
                 }
               </p>
-              <p>Esta accion no se puede deshacer.</p>
+              <p>
+                @if (deleteTarget.kind === 'appointment') {
+                Esta accion no se puede deshacer.
+                } @else {
+                Esta accion aplica baja logica y se puede revertir activando al usuario.
+                }
+              </p>
               <div class="actions-row">
                 <button class="ghost-btn" type="button" [disabled]="isConfirmingDelete" (click)="cancelDelete()">Cancelar</button>
                 <button class="danger-btn" type="button" [disabled]="isConfirmingDelete" (click)="confirmDelete()">{{
-                  isConfirmingDelete ? 'Eliminando...' : 'Si, eliminar' }}</button>
+                  isConfirmingDelete ? 'Procesando...' : (deleteTarget.kind === 'appointment' ? 'Si, eliminar' : 'Si, continuar') }}</button>
               </div>
       </div>
     </div>

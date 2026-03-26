@@ -3,12 +3,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { User, UserRole } from '../models/user.model';
+import { User, UserRole, UserStatus } from '../models/user.model';
 
 export interface UsersQuery {
   search?: string;
   role?: UserRole | '';
-  sortBy?: 'creadoEn' | 'usuario' | 'email' | 'role';
+  estado?: UserStatus | '';
+  sortBy?: 'creadoEn' | 'usuario' | 'email' | 'role' | 'estado';
   sortDir?: 'ASC' | 'DESC';
   page?: number;
   limit?: number;
@@ -28,6 +29,7 @@ export interface CreateUserPayload {
   email: string;
   password: string;
   role: UserRole;
+  estado: UserStatus;
 }
 
 export interface UpdateUserPayload {
@@ -35,6 +37,7 @@ export interface UpdateUserPayload {
   telefono?: string;
   email?: string;
   role?: UserRole;
+  estado?: UserStatus;
 }
 
 @Injectable({
@@ -55,6 +58,10 @@ export class UsersService {
 
     if (query.role) {
       params = params.set('role', query.role);
+    }
+
+    if (query.estado) {
+      params = params.set('estado', query.estado);
     }
 
     if (query.sortBy) {

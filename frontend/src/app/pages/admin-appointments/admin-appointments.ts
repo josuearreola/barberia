@@ -14,7 +14,7 @@ import {
   UsersService,
 } from '../../services/users.service';
 import { AuthService } from '../../services/auth.service';
-import { User, UserRole } from '../../models/user.model';
+import { User, UserRole, UserStatus } from '../../models/user.model';
 
 type AdminTab = 'appointments' | 'users';
 
@@ -22,6 +22,7 @@ type DeleteTarget = {
   kind: 'appointment' | 'user';
   id: number;
   label: string;
+  nextStatus?: UserStatus;
 };
 
 @Component({
@@ -49,13 +50,15 @@ export class AdminAppointments implements OnInit {
   userFilters: {
     search: string;
     role: UserRole | '';
-    sortBy: 'creadoEn' | 'usuario' | 'email' | 'role';
+    estado: UserStatus | '';
+    sortBy: 'creadoEn' | 'usuario' | 'email' | 'role' | 'estado';
     sortDir: 'ASC' | 'DESC';
     page: number;
     limit: number;
   } = {
       search: '',
       role: '',
+      estado: '',
       sortBy: 'creadoEn',
       sortDir: 'DESC',
       page: 1,
@@ -64,6 +67,7 @@ export class AdminAppointments implements OnInit {
 
   appointmentStatusOptions = ['pendiente', 'confirmada', 'completada', 'cancelada'];
   roleOptions: UserRole[] = ['admin', 'cliente'];
+  userStatusOptions: UserStatus[] = ['activo', 'inactivo'];
 
   isLoading = false;
   isLoadingUsers = false;
@@ -91,6 +95,7 @@ export class AdminAppointments implements OnInit {
     email: '',
     password: '',
     role: 'cliente',
+    estado: 'activo',
   };
 
   createAppointmentForm = {
@@ -376,6 +381,7 @@ export class AdminAppointments implements OnInit {
     this.userFilters = {
       search: '',
       role: '',
+      estado: '',
       sortBy: 'creadoEn',
       sortDir: 'DESC',
       page: 1,
@@ -412,6 +418,7 @@ export class AdminAppointments implements OnInit {
       email: this.createUserForm.email.trim(),
       password: this.createUserForm.password.trim(),
       role: this.createUserForm.role,
+      estado: this.createUserForm.estado,
     };
 
     this.usersService
@@ -458,6 +465,7 @@ export class AdminAppointments implements OnInit {
       telefono: user.telefono,
       email: user.email,
       role: user.role,
+      estado: user.estado,
     };
   }
 
@@ -484,6 +492,7 @@ export class AdminAppointments implements OnInit {
       telefono: this.userEditForm.telefono?.trim(),
       email: this.userEditForm.email?.trim(),
       role: this.userEditForm.role,
+      estado: this.userEditForm.estado,
     };
 
     this.usersService
@@ -513,10 +522,14 @@ export class AdminAppointments implements OnInit {
       return;
     }
 
+    const nextStatus: UserStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
+    const actionLabel = nextStatus === 'inactivo' ? 'dar de baja' : 'reactivar';
+
     this.deleteTarget = {
       kind: 'user',
       id: user.id,
-      label: user.usuario,
+      label: `${actionLabel} a ${user.usuario}`,
+      nextStatus,
     };
   }
 
@@ -560,9 +573,18 @@ export class AdminAppointments implements OnInit {
     }
 
     const userId = this.deleteTarget.id;
+    const nextStatus = this.deleteTarget.nextStatus;
+
+    if (!nextStatus) {
+      this.isConfirmingDelete = false;
+      this.deleteTarget = null;
+      this.errorMessage = 'No se pudo determinar el estado del usuario.';
+      return;
+    }
+
     this.pendingUserIds.add(userId);
     this.usersService
-      .deleteUser(userId)
+      .updateUser(userId, { estado: nextStatus })
       .pipe(
         finalize(() => {
           this.pendingUserIds.delete(userId);
@@ -571,14 +593,18 @@ export class AdminAppointments implements OnInit {
         }),
       )
       .subscribe({
-        next: () => {
-          this.successMessage = 'Usuario eliminado.';
-          if (!this.removeUserFromCurrentView(userId)) {
+        next: (updatedUser) => {
+          this.successMessage =
+            nextStatus === 'inactivo'
+              ? 'Usuario dado de baja.'
+              : 'Usuario reactivado.';
+
+          if (!this.updateUserInCurrentView(updatedUser)) {
             this.loadUsers();
           }
         },
         error: (error) => {
-          this.errorMessage = this.extractErrorMessage(error, 'No se pudo eliminar el usuario.');
+          this.errorMessage = this.extractErrorMessage(error, 'No se pudo actualizar el estado del usuario.');
         },
       });
   }
@@ -703,6 +729,10 @@ export class AdminAppointments implements OnInit {
       return 'Selecciona un rol.';
     }
 
+    if (!payload.estado) {
+      return 'Selecciona un estado.';
+    }
+
     return null;
   }
 
@@ -717,6 +747,10 @@ export class AdminAppointments implements OnInit {
 
     if (payload.usuario !== undefined && !payload.usuario.trim()) {
       return 'El usuario no puede estar vacio.';
+    }
+
+    if (payload.estado !== undefined && !this.userStatusOptions.includes(payload.estado)) {
+      return 'Selecciona un estado valido.';
     }
 
     return null;
@@ -745,6 +779,7 @@ export class AdminAppointments implements OnInit {
       email: '',
       password: '',
       role: 'cliente',
+      estado: 'activo',
     };
   }
 
@@ -797,7 +832,7 @@ export class AdminAppointments implements OnInit {
   private insertUserInCurrentView(user: User): boolean {
     const isFirstPage = this.userFilters.page === 1;
     const isDefaultSort = this.userFilters.sortBy === 'creadoEn' && this.userFilters.sortDir === 'DESC';
-    const hasFilters = !!this.userFilters.search || !!this.userFilters.role;
+    const hasFilters = !!this.userFilters.search || !!this.userFilters.role || !!this.userFilters.estado;
 
     if (!isFirstPage || !isDefaultSort || hasFilters || !this.loadedUsers) {
       return false;
