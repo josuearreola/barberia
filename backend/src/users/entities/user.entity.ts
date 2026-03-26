@@ -11,6 +11,11 @@ export enum UserRole {
   Cliente = 'cliente',
 }
 
+export enum UserStatus {
+  Activo = 'activo',
+  Inactivo = 'inactivo',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
@@ -30,6 +35,15 @@ export class User {
 
   @Column({ name: 'role', length: 20, default: UserRole.Cliente })
   role: UserRole;
+
+  @Column({
+    name: 'estado',
+    type: 'enum',
+    enum: UserStatus,
+    enumName: 'user_status',
+    default: UserStatus.Activo,
+  })
+  estado: UserStatus;
 
   @CreateDateColumn({ name: 'creado_en' })
   creadoEn: Date;

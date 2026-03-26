@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { User, UserRole } from './entities/user.entity';
+import { User, UserRole, UserStatus } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 const bcryptClient = bcrypt as {
@@ -17,6 +17,7 @@ const bcryptClient = bcrypt as {
 export interface FindUsersOptions {
   search?: string;
   role?: UserRole;
+  estado?: UserStatus;
   sortBy?: string;
   sortDir?: string;
   page?: number;
@@ -37,6 +38,7 @@ export interface CreateUserData {
   email: string;
   password: string;
   role?: UserRole;
+  estado?: UserStatus;
 }
 
 export interface CreateUserWithHashData {
@@ -45,6 +47,7 @@ export interface CreateUserWithHashData {
   email: string;
   passwordHash: string;
   role?: UserRole;
+  estado?: UserStatus;
 }
 
 @Injectable()
@@ -92,6 +95,7 @@ export class UsersService {
       email: data.email,
       passwordHash,
       role: data.role ?? UserRole.Cliente,
+      estado: data.estado ?? UserStatus.Activo,
     });
 
     const saved = await this.usersRepository.save(user);
@@ -140,6 +144,7 @@ export class UsersService {
       usuario: 'user.usuario',
       email: 'user.email',
       role: 'user.role',
+      estado: 'user.estado',
     };
 
     const sortBy = sortMap[options.sortBy ?? ''] ?? 'user.creadoEn';
@@ -153,6 +158,14 @@ export class UsersService {
       (options.role === UserRole.Admin || options.role === UserRole.Cliente)
     ) {
       query.andWhere('user.role = :role', { role: options.role });
+    }
+
+    if (
+      options.estado &&
+      (options.estado === UserStatus.Activo ||
+        options.estado === UserStatus.Inactivo)
+    ) {
+      query.andWhere('user.estado = :estado', { estado: options.estado });
     }
 
     if (options.search) {
@@ -234,6 +247,7 @@ export class UsersService {
       telefono: user.telefono,
       email: user.email,
       role: user.role,
+      estado: user.estado,
       creadoEn: user.creadoEn,
       actualizadoEn: user.actualizadoEn,
     } as User;

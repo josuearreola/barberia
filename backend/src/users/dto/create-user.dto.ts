@@ -5,7 +5,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '../entities/user.entity';
+import { UserRole, UserStatus } from '../entities/user.entity';
 
 export class CreateUserDto {
   @IsString()
@@ -26,4 +26,8 @@ export class CreateUserDto {
   @IsIn(Object.values(UserRole))
   @IsOptional()
   role?: UserRole;
+
+  @IsIn(Object.values(UserStatus))
+  @IsOptional()
+  estado?: UserStatus;
 }

@@ -16,7 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserRole } from './entities/user.entity';
+import { UserRole, UserStatus } from './entities/user.entity';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -29,6 +29,7 @@ export class UsersController {
   findAll(
     @Query('search') search?: string,
     @Query('role') role?: string,
+    @Query('estado') estado?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortDir') sortDir?: string,
     @Query('page') page?: string,
@@ -36,10 +37,15 @@ export class UsersController {
   ): Promise<unknown> {
     const normalizedRole =
       role === UserRole.Admin || role === UserRole.Cliente ? role : undefined;
+    const normalizedEstado =
+      estado === UserStatus.Activo || estado === UserStatus.Inactivo
+        ? estado
+        : undefined;
 
     return this.usersService.findAll({
       search,
       role: normalizedRole,
+      estado: normalizedEstado,
       sortBy,
       sortDir,
       page: Number(page),

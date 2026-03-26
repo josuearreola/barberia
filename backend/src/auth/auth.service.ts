@@ -9,7 +9,7 @@ import type { Request } from 'express';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { MailService } from './mail.service';
 import { SecuritySessionsService } from './security-sessions.service';
 
@@ -126,6 +126,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales invalidas');
     }
 
+    if (user.estado !== UserStatus.Activo) {
+      throw new UnauthorizedException('Usuario inactivo. Contacta al administrador.');
+    }
+
     return user;
   }
 
@@ -182,7 +186,12 @@ export class AuthService {
   }
 
   async getProfile(userId: number) {
-    return this.usersService.findById(userId);
+    const user = await this.usersService.findById(userId);
+    if (user.estado !== UserStatus.Activo) {
+      throw new UnauthorizedException('Usuario inactivo');
+    }
+
+    return user;
   }
 
   private async verifyToken<T extends object>(token: string): Promise<T> {
